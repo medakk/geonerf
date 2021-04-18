@@ -49,6 +49,7 @@ def main():
             os.path.join(cfg.dataset.cachedir, "val", "*.data")
         )
         USE_CACHED_DATASET = True
+        print("using cache!")
     else:
         # Load dataset
         images, poses, render_poses, hwf = None, None, None, None
