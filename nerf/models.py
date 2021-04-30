@@ -254,3 +254,52 @@ class FlexibleNeRFModel(torch.nn.Module):
             return torch.cat((rgb, alpha), dim=-1)
         else:
             return self.fc_out(x)
+
+class GeoNeRF(torch.nn.Module):
+    def __init__(self,
+                 hidden_size=128):
+        super(GeoNeRF, self).__init__()
+
+        self.nerf = None
+        self.hidden_size = hidden_size
+
+        self.geo_layer1 = torch.nn.Linear(2 * self.hidden_size, self.hidden_size)
+        self.geo_layer2 = torch.nn.Linear(self.hidden_size, self.hidden_size)
+        self.fc_out = torch.nn.Linear(self.hidden_size, 1)
+
+        self.relu = torch.nn.functional.relu
+    
+    def set_nerf(self, nerf):
+        self.nerf = nerf
+        assert(self.hidden_size == nerf.layer1.out_features)
+
+        self.nerf.requires_grad = False
+    
+    def nerf_forward(self, x):
+        assert(self.nerf.use_viewdirs == False)
+
+        xyz, view = x[..., : self.nerf.dim_xyz], x[..., self.nerf.dim_xyz :]
+        x = self.nerf.layer1(xyz)
+
+        n_layers = 2 # max 4?
+        for i in range(n_layers):
+            if (
+                i % self.nerf.skip_connect_every == 0
+                and i > 0
+                and i != len(self.nerf.linear_layers) - 1
+            ):
+                x = torch.cat((x, xyz), dim=-1)
+            x = self.nerf.relu(self.nerf.layers_xyz[i](x))
+        return x
+        # return self.nerf.fc_out(x)
+
+    
+    def forward(self, x0, x1):
+        x0 = self.nerf_forward(x0)
+        x1 = self.nerf_forward(x1)
+
+        x = torch.cat([x0, x1], dim=1)
+        x = self.relu(self.geo_layer1(x))
+        x = self.relu(self.geo_layer2(x))
+        x = self.relu(self.fc_out(x))
+        return x

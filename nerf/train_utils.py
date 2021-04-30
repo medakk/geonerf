@@ -1,4 +1,7 @@
+import random
+
 import torch
+import numpy as np
 
 from .nerf_helpers import get_minibatches, ndc_rays
 from .nerf_helpers import sample_pdf_2 as sample_pdf
@@ -200,3 +203,25 @@ def run_one_iter_of_nerf(
             return tuple(synthesized_images + [None, None, None])
 
     return tuple(synthesized_images)
+
+def sample_geodesics(geodesics, n_samples, mode='train'):
+    V, D = geodesics['V'], geodesics['D']
+    N = V.shape[0]
+
+    X0 = np.ndarray((n_samples, 3), dtype=np.float32)
+    X1 = np.ndarray((n_samples, 3), dtype=np.float32)
+    targets = np.ndarray((n_samples, ), dtype=np.float32)
+
+    rand_s = 0 if 'train' else int(0.8 * n_samples)
+    rand_e = int(0.8 * n_samples) if 'train' else n_samples
+
+    for i in range(n_samples):
+        v0 = random.randrange(rand_s, rand_e)
+        v1 = random.randrange(rand_s, rand_e)
+
+        X0[i] = V[v0]
+        X1[i] = V[v1]
+        targets[i] = D[v0, v1]
+
+    X0, X1, targets = torch.from_numpy(X0), torch.from_numpy(X1), torch.from_numpy(targets)
+    return X0, X1, targets
