@@ -212,11 +212,11 @@ def sample_geodesics(geodesics, n_samples, mode='train'):
     X1 = np.ndarray((n_samples, 3), dtype=np.float32)
     targets = np.ndarray((n_samples, ), dtype=np.float32)
 
-    rand_s = 0 if 'train' else int(0.8 * n_samples)
-    rand_e = int(0.8 * n_samples) if 'train' else n_samples
+    rand_s = 0
+    rand_e = N
 
+    v0 = random.randrange(rand_s, rand_e)
     for i in range(n_samples):
-        v0 = random.randrange(rand_s, rand_e)
         v1 = random.randrange(rand_s, rand_e)
 
         X0[i] = V[v0]

@@ -263,9 +263,11 @@ class GeoNeRF(torch.nn.Module):
         self.nerf = None
         self.hidden_size = hidden_size
 
+        # self.layer_xyz = torch.nn.Linear(3, 128)
         self.geo_layer1 = torch.nn.Linear(2 * self.hidden_size, self.hidden_size)
         self.geo_layer2 = torch.nn.Linear(self.hidden_size, self.hidden_size)
-        self.fc_out = torch.nn.Linear(self.hidden_size, 1)
+        self.geo_layer3 = torch.nn.Linear(self.hidden_size, 64)
+        self.fc_out = torch.nn.Linear(64, 1)
 
         self.relu = torch.nn.functional.relu
     
@@ -280,8 +282,10 @@ class GeoNeRF(torch.nn.Module):
 
         xyz, view = x[..., : self.nerf.dim_xyz], x[..., self.nerf.dim_xyz :]
         x = self.nerf.layer1(xyz)
+        return x
 
         n_layers = 2 # max 4?
+        # print('here:', len(self.nerf.layers_xyz))
         for i in range(n_layers):
             if (
                 i % self.nerf.skip_connect_every == 0
@@ -297,9 +301,12 @@ class GeoNeRF(torch.nn.Module):
     def forward(self, x0, x1):
         x0 = self.nerf_forward(x0)
         x1 = self.nerf_forward(x1)
+        # x0 = self.layer_xyz(x0)
+        # x1 = self.layer_xyz(x1)
 
         x = torch.cat([x0, x1], dim=1)
-        x = self.relu(self.geo_layer1(x))
-        x = self.relu(self.geo_layer2(x))
-        x = self.relu(self.fc_out(x))
+        x = torch.relu(self.geo_layer1(x))
+        x = torch.relu(self.geo_layer2(x))
+        x = torch.relu(self.geo_layer3(x))
+        x = self.fc_out(x)
         return x

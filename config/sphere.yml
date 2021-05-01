@@ -166,3 +166,5 @@ nerf:
 
 geonerf:
   cache_filename: cache/sphere/geodesics.bin
+  out_filename: logs/sphere-lowres3/result.npy
+  out_model: logs/sphere-lowres3/model.ckpt

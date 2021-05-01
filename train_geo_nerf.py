@@ -142,11 +142,12 @@ def main():
 
     # Initialize optimizer.
     trainable_parameters = list(geo_nerf_model.parameters())
-    optimizer = torch.optim.Adam(trainable_parameters)
+    optimizer = torch.optim.Adam(trainable_parameters, lr=0.0001)
 
     
-    n_iters = 5
-    batch_size = 32
+    n_iters = 100000
+    batch_size = 64
+    # encode_position_fn = lambda x: x
     for i in trange(n_iters):
         optimizer.zero_grad()
         geo_nerf_model.train()
@@ -158,8 +159,8 @@ def main():
         pred = torch.flatten(geo_nerf_model(X0, X1))
 
         loss = torch.nn.functional.mse_loss(pred, targets)
+        loss.backward()
         optimizer.step()
-        optimizer.zero_grad()
 
         if i % cfg.experiment.print_every == 0 or i == cfg.experiment.train_iters - 1:
             tqdm.write(
@@ -215,15 +216,19 @@ def main():
     N = geodesics['V'].shape[0]
     D = np.ndarray((N, N))
     print("Final evaluation")
-    for i in trange(N):
-        x0 = geodesics['V'][i].reshape((1, 3)).astype(np.float32)
-        x0 = torch.from_numpy(x0).to(device)
-        for j in range(N):
-            x1 = geodesics['V'][j].reshape((1, 3)).astype(np.float32)
-            x1 = torch.from_numpy(x1).to(device)
-            x0, x1 = encode_position_fn(x0), encode_position_fn(x1)
-            pred = geo_nerf_model(x0, x1)
-            D[i,j] = pred
+    X1 = geodesics['V'].copy().astype(np.float32)
+    X1 = torch.from_numpy(X1).to(device)
+    X1 = encode_position_fn(X1)
+    with torch.no_grad():
+        for i in trange(N):
+            x0 = geodesics['V'][i].reshape((1, 3)).astype(np.float32)
+            X0 = np.repeat(x0, N, axis=0)
+            X0 = torch.from_numpy(X0).to(device)
+            X0 = encode_position_fn(X0)
+            pred = geo_nerf_model(X0, X1).cpu().numpy().reshape((-1,))
+            D[i] = pred
+    np.save(cfg.geonerf.out_filename, D)
+    torch.save(geo_nerf_model.state_dict(), cfg.geonerf.out_model)
     plt.imshow(D); plt.show()
 
 
