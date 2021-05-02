@@ -40,37 +40,6 @@ def main():
     # # (Optional:) enable this to track autograd issues when debugging
     # torch.autograd.set_detect_anomaly(True)
 
-    # If a pre-cached dataset is available, skip the dataloader.
-    USE_CACHED_DATASET = False
-    train_paths, validation_paths = None, None
-    images, poses, render_poses, hwf, i_split = None, None, None, None, None
-    H, W, focal, i_train, i_val, i_test = None, None, None, None, None, None
-    """
-    # Disable Cache dir stuff
-    if hasattr(cfg.dataset, "cachedir") and os.path.exists(cfg.dataset.cachedir):
-        train_paths = glob.glob(os.path.join(cfg.dataset.cachedir, "train", "*.data"))
-        validation_paths = glob.glob(
-            os.path.join(cfg.dataset.cachedir, "val", "*.data")
-        )
-        USE_CACHED_DATASET = True
-        print("using cache!")
-    else:
-    """
-    if True:
-        # Load dataset
-        images, poses, render_poses, hwf = None, None, None, None
-        assert(cfg.dataset.type.lower() == "blender")
-        images, poses, render_poses, hwf, i_split = load_blender_data(
-            cfg.dataset.basedir,
-            half_res=cfg.dataset.half_res,
-            testskip=cfg.dataset.testskip,
-        )
-        i_train, i_val, i_test = i_split
-        H, W, focal = hwf
-        H, W = int(H), int(W)
-        hwf = [H, W, focal]
-        if cfg.nerf.train.white_background:
-            images = images[..., :3] * images[..., -1:] + (1.0 - images[..., -1:])
 
     # Seed experiment for repeatability
     seed = cfg.experiment.randomseed
@@ -135,8 +104,6 @@ def main():
             model_fine.load_state_dict(checkpoint["model_fine_state_dict"])
         # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     
-    geodesics = pickle.load(open(cfg.geonerf.cache_filename, 'rb'))
-    
     geo_nerf_model = models.GeoNeRF(128)
     geo_nerf_model.set_nerf(model_coarse)
     geo_nerf_model.to(device)
@@ -144,6 +111,7 @@ def main():
     geo_nerf_model.load_state_dict(state)
     geo_nerf_model.eval()
 
+    geodesics = pickle.load(open(cfg.geonerf.cache_filename, 'rb'))
     def count_parameters(model):
         return sum(p.numel() for p in model.parameters())
     print(f'Number of parameters: {count_parameters(geo_nerf_model)}')
