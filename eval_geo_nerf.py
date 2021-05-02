@@ -139,79 +139,10 @@ def main():
     geo_nerf_model = models.GeoNeRF(128)
     geo_nerf_model.set_nerf(model_coarse)
     geo_nerf_model.to(device)
+    state = torch.load(cfg.geonerf.out_model)
+    geo_nerf_model.load_state_dict(state)
 
     # Initialize optimizer.
-    trainable_parameters = list(geo_nerf_model.parameters())
-    optimizer = torch.optim.Adam(trainable_parameters, lr=0.0001)
-
-    
-    n_iters = 200000
-    batch_size = 64
-    # encode_position_fn = lambda x: x
-    for i in trange(n_iters):
-        optimizer.zero_grad()
-        geo_nerf_model.train()
-
-        X0, X1, targets = sample_geodesics(geodesics, batch_size, 'train')
-        X0, X1, targets = X0.to(device), X1.to(device), targets.to(device)
-        X0, X1 = encode_position_fn(X0), encode_position_fn(X1)
-
-        pred = torch.flatten(geo_nerf_model(X0, X1))
-
-        loss = torch.nn.functional.mse_loss(pred, targets)
-        loss.backward()
-        optimizer.step()
-
-        if i % cfg.experiment.print_every == 0 or i == cfg.experiment.train_iters - 1:
-            tqdm.write(
-                "[TRAIN] Iter: "
-                + str(i)
-                + " Loss: "
-                + str(loss.item())
-            )
-
-        # Validation
-        if (
-            i % cfg.experiment.validate_every == 0
-            or i == cfg.experiment.train_iters - 1
-        ):
-            tqdm.write("[VAL] =======> Iter: " + str(i))
-            geo_nerf_model.eval()
-
-            start = time.time()
-            with torch.no_grad():
-                X0, X1, targets = sample_geodesics(geodesics, batch_size, 'val')
-                X0, X1, targets = X0.to(device), X1.to(device), targets.to(device)
-                X0, X1 = encode_position_fn(X0), encode_position_fn(X1)
-                pred = torch.flatten(geo_nerf_model(X0, X1))
-                loss = torch.nn.functional.mse_loss(pred, targets)
-
-                tqdm.write(
-                    "Validation loss: "
-                    + str(loss.item())
-                    + " Time: "
-                    + str(time.time() - start)
-                )
-
-        if False and (i % cfg.experiment.save_every == 0 or i == cfg.experiment.train_iters - 1):
-            checkpoint_dict = {
-                "iter": i,
-                "model_coarse_state_dict": model_coarse.state_dict(),
-                "model_fine_state_dict": None
-                if not model_fine
-                else model_fine.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "loss": loss,
-                "psnr": psnr,
-            }
-            torch.save(
-                checkpoint_dict,
-                os.path.join(logdir, "checkpoint" + str(i).zfill(5) + ".ckpt"),
-            )
-            tqdm.write("================== Saved Checkpoint =================")
-
-    print("Done!")
-
     geo_nerf_model.eval()
     N = geodesics['V'].shape[0]
     D = np.ndarray((N, N))
@@ -228,7 +159,6 @@ def main():
             pred = geo_nerf_model(X0, X1).cpu().numpy().reshape((-1,))
             D[i] = pred
     np.save(cfg.geonerf.out_filename, D)
-    torch.save(geo_nerf_model.state_dict(), cfg.geonerf.out_model)
     plt.imshow(D); plt.show()
 
 

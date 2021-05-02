@@ -282,9 +282,8 @@ class GeoNeRF(torch.nn.Module):
 
         xyz, view = x[..., : self.nerf.dim_xyz], x[..., self.nerf.dim_xyz :]
         x = self.nerf.layer1(xyz)
-        return x
 
-        n_layers = 2 # max 4?
+        n_layers = 1 # max 4?
         # print('here:', len(self.nerf.layers_xyz))
         for i in range(n_layers):
             if (
