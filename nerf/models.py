@@ -275,7 +275,7 @@ class GeoNeRF(torch.nn.Module):
         self.nerf = nerf
         assert(self.hidden_size == nerf.layer1.out_features)
 
-        self.nerf.requires_grad = False
+        self.nerf.requires_grad = True
     
     def nerf_forward(self, x):
         assert(self.nerf.use_viewdirs == False)
